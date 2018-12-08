@@ -110,6 +110,8 @@ func main() {
 		overlap := false
 		for y := c.top; y < maxY; y++ {
 			for x := c.left; x < maxX; x++ {
+				// Since the claims will have marked it's own coordinates we are looking for a claim
+				// whose current coords are not more than 1
 				if fm.fabric[x][y] > 1 {
 					overlap = true
 					break
