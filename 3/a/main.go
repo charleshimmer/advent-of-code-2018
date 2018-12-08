@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,6 +20,33 @@ func parseFile(path string) []string {
 	return lines
 }
 
+const fabricInches = 1000
+
+type fabricManager struct {
+	fabric       [][]int
+	overlapCount int
+}
+
+func newFabricManager() *fabricManager {
+	fm := &fabricManager{}
+	fm.fabric = make([][]int, fabricInches)
+	return fm
+}
+
+func (fm *fabricManager) claimPoint(x int, y int) {
+	if fm.fabric[x] == nil {
+		fm.fabric[x] = make([]int, fabricInches)
+	}
+	// Every time a claim wants this coordinate of fabric we increase
+	// the number of times it's been claimed
+	fm.fabric[x][y]++
+
+	// If this is the second time we are claiming the same point increase overlap counter
+	if fm.fabric[x][y] == 2 {
+		fm.overlapCount++
+	}
+}
+
 type claim struct {
 	ID     int
 	left   int
@@ -29,12 +57,51 @@ type claim struct {
 
 func main() {
 	start := time.Now()
+	claimData := parseFile("../../3/claims.txt")
+	// claimData := parseFile("../../3/a/example.txt")
+	var claims []claim
 
-	claims := parseFile("../../3/claims.txt")
-
-	for _, data := range claims {
-		fmt.Println(data)
+	// Split the strings so we can organize the data into a slice of structs
+	for _, data := range claimData {
+		data = strings.Replace(data, " ", "", -1) // Remove all spaces
+		parts := strings.Split(data, "@")
+		parts[0] = strings.Trim(parts[0], "#")
+		detailParts := strings.Split(parts[1], ":")
+		tlParts := strings.Split(detailParts[0], ",")
+		whParts := strings.Split(detailParts[1], "x")
+		ID, _ := strconv.Atoi(parts[0])
+		left, _ := strconv.Atoi(tlParts[0])
+		top, _ := strconv.Atoi(tlParts[1])
+		width, _ := strconv.Atoi(whParts[0])
+		height, _ := strconv.Atoi(whParts[1])
+		c := claim{
+			ID:     ID,
+			left:   left,
+			top:    top,
+			width:  width,
+			height: height,
+		}
+		claims = append(claims, c)
 	}
+
+	fm := newFabricManager()
+
+	// Layout claims
+	for _, c := range claims {
+		// We need to know the max x and y and we loop to those values
+		maxY := c.top + c.height
+		maxX := c.left + c.width
+		for y := c.top; y < maxY; y++ {
+			for x := c.left; x < maxX; x++ {
+				fm.claimPoint(x, y)
+			}
+		}
+	}
+
+	// for i := range fm.fabric {
+	// 	fmt.Printf("%d %v\n", i, fm.fabric[i])
+	// }
+	fmt.Println(fm.overlapCount)
 
 	fmt.Printf("Runtime took %s\n", time.Since(start))
 }
